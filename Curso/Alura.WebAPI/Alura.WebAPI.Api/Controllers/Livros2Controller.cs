@@ -1,41 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Alura.ListaLeitura.Modelos;
+﻿using Alura.ListaLeitura.Modelos;
 using Alura.ListaLeitura.Persistencia;
 using Alura.WebAPI.Api.Modelos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Formatters;
+using System.Linq;
 
 namespace Alura.ListaLeitura.Api.Controllers
 {
-    [Authorize]
     [ApiController]
-    [ApiVersion("1.0")]
-    [ApiExplorerSettings(GroupName = "v1")]
-    [Route("api/v{version:apiVersion}/[controller]")]
-    public class LivrosController : ControllerBase
+    [Authorize]
+    [ApiVersion("2.0")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    [Route("api/v{version:apiVersion}/livros")]
+    public class Livros2Controller : ControllerBase
     {
         private readonly IRepository<Livro> _repo;
 
-        public LivrosController(IRepository<Livro> repository)
+        public Livros2Controller(IRepository<Livro> repository)
         {
             _repo = repository;
         }
 
         [HttpGet]
-        public IActionResult ListaDeLivros()
+        public IActionResult ListaDeLivros([FromQuery] LivroFiltro filtro, 
+                                           [FromQuery] LivroOrdem ordem,
+                                           [FromQuery] LivroPaginacao paginacao)
         {
-            var lista = _repo.All.Select(l => l.ToApi()).ToList();
-            return Ok(lista);
+            var livroPginado = _repo.All
+                  .AplicaFiltro(filtro)
+                  .AplicaOrdem(ordem)
+                  .Select(l => l.ToApi())
+                  .ToLivroPaginado(paginacao);
+
+            return Ok(livroPginado);
         }
 
         [HttpGet("{id}")]
-        [ProducesResponseType(statusCode: 200, Type = typeof(LivroApi))]
-        [ProducesResponseType(statusCode: 500, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(statusCode: 404)]
         public IActionResult Recuperar(int id)
         {
             var model = _repo.Find(id);
@@ -43,7 +43,7 @@ namespace Alura.ListaLeitura.Api.Controllers
             {
                 return NotFound();
             }
-            return Ok(model.ToApi());
+            return Ok(model);
         }
 
         [HttpGet("{id}/capa")]
@@ -70,7 +70,7 @@ namespace Alura.ListaLeitura.Api.Controllers
                 var uri = Url.Action("Recuperar", new { id = livro.Id });
                 return Created(uri, livro); //201
             }
-            return BadRequest();
+            return BadRequest(ErrorResponse.FromModelState(ModelState));
         }
 
         [HttpPut]
